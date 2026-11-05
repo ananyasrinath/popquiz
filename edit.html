@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edit quiz · PopQuiz</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  .bar-top{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line)}
+  .q-head{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+  .q-num{font:700 14px Inter;color:var(--brand)}
+  .optrow{display:flex;gap:8px;align-items:center;margin:6px 0}
+  .optrow input[type=radio]{width:18px;height:18px;accent-color:var(--good);flex:none}
+  .optrow.correct input[type=text]{border-color:var(--good);background:var(--good-soft)}
+  .x{border:none;background:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px 8px}
+  .x:hover{color:var(--bad)}
+  #dirty{font-size:13px}
+</style>
+</head><body>
+<nav><a class="logo" href="/">Pop<span>Quiz</span></a><div class="links"><a href="/dashboard">← All quizzes</a></div></nav>
+<div class="wrap narrow">
+  <div class="bar-top row">
+    <span id="status"></span>
+    <span id="dirty" class="muted"></span>
+    <span class="spacer"></span>
+    <a class="btn small" id="resultsBtn">Results</a>
+    <a class="btn small" id="openBtn" target="_blank">Preview ↗</a>
+    <button class="btn small" onclick="copy(location.origin+'/q/'+quiz.id)">Copy link</button>
+    <button class="btn small primary" onclick="save()">Save</button>
+  </div>
+
+  <div class="card">
+    <label>Title</label><input id="title" style="font:600 20px Fraunces,serif">
+    <label>Description</label><textarea id="description" rows="2" placeholder="Shown at the top of the quiz"></textarea>
+    <div class="row">
+      <div style="flex:1"><label>Pass mark (%)</label><input id="pass_mark" type="number" min="0" max="100"></div>
+      <div style="flex:1"><label>Status</label><select id="qstatus"><option value="live">Live — accepting answers</option><option value="closed">Closed</option></select></div>
+    </div>
+  </div>
+
+  <div id="questions"></div>
+  <div class="row" style="justify-content:space-between">
+    <button class="btn" onclick="addQ()">+ Add question</button>
+    <button class="btn danger small" onclick="del()">Delete quiz</button>
+  </div>
+</div>
+<script src="/static/app.js"></script>
+<script>
+const id = location.pathname.split('/').pop();
+let quiz, dirty = false;
+const setDirty = (d = true) => { dirty = d; $('#dirty').textContent = d ? '• Unsaved changes' : 'All changes saved'; };
+
+function render() {
+  $('#status').innerHTML = `<span class="pill ${quiz.status}">${quiz.status}</span> ${quiz.source === 'claude' ? '<span class="pill claude">by Claude</span>' : ''}`;
+  $('#questions').innerHTML = quiz.questions.map((q, i) => `
+    <div class="card">
+      <div class="q-head"><span class="q-num">Q${i + 1}</span><span class="spacer"></span>
+        <button class="x" title="Move up" onclick="move(${i},-1)">↑</button><button class="x" title="Move down" onclick="move(${i},1)">↓</button>
+        <button class="x" title="Delete question" onclick="removeQ(${i})">✕</button></div>
+      <textarea rows="2" oninput="quiz.questions[${i}].question=this.value;setDirty()">${esc(q.question)}</textarea>
+      <label>Answers <span class="muted" style="font-weight:400">— tick the correct one</span></label>
+      ${q.options.map((o, j) => `
+        <div class="optrow ${q.correct_option === j ? 'correct' : ''}">
+          <input type="radio" name="c${i}" ${q.correct_option === j ? 'checked' : ''} onchange="quiz.questions[${i}].correct_option=${j};setDirty();render()">
+          <input type="text" value="${esc(o)}" oninput="quiz.questions[${i}].options[${j}]=this.value;setDirty()">
+          ${q.options.length > 2 ? `<button class="x" onclick="removeOpt(${i},${j})">✕</button>` : ''}
+        </div>`).join('')}
+      ${q.options.length < 6 ? `<button class="btn small" onclick="addOpt(${i})">+ Add answer</button>` : ''}
+      <label>Explanation <span class="muted" style="font-weight:400">— shown after submitting</span></label>
+      <textarea rows="2" oninput="quiz.questions[${i}].explanation=this.value;setDirty()">${esc(q.explanation)}</textarea>
+    </div>`).join('');
+}
+function addQ() { quiz.questions.push({ question: '', options: ['', ''], correct_option: 0, explanation: '' }); setDirty(); render(); window.scrollTo(0, document.body.scrollHeight); }
+function removeQ(i) { if (confirm('Delete this question?')) { quiz.questions.splice(i, 1); setDirty(); render(); } }
+function move(i, d) { const j = i + d; if (j < 0 || j >= quiz.questions.length) return; [quiz.questions[i], quiz.questions[j]] = [quiz.questions[j], quiz.questions[i]]; setDirty(); render(); }
+function addOpt(i) { quiz.questions[i].options.push(''); setDirty(); render(); }
+function removeOpt(i, j) { const q = quiz.questions[i]; q.options.splice(j, 1); if (q.correct_option >= j && q.correct_option > 0) q.correct_option--; setDirty(); render(); }
+
+async function save() {
+  quiz.title = $('#title').value; quiz.description = $('#description').value;
+  quiz.pass_mark = Number($('#pass_mark').value); quiz.status = $('#qstatus').value;
+  quiz = await api('/api/quizzes/' + id, { method: 'PUT', body: quiz });
+  render(); setDirty(false); toast('Saved — live link updated');
+}
+async function del() { if (confirm('Delete this quiz and all its results?')) { await api('/api/quizzes/' + id, { method: 'DELETE' }); location.href = '/dashboard'; } }
+
+['title', 'description', 'pass_mark', 'qstatus'].forEach((f) => $('#' + f).addEventListener('input', () => setDirty()));
+window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
+document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); } });
+
+(async () => {
+  try { quiz = await api('/api/quizzes/' + id); } catch (e) { document.querySelector('.wrap').innerHTML = '<div class="card empty">Quiz not found.</div>'; return; }
+  document.title = quiz.title + ' · PopQuiz';
+  $('#title').value = quiz.title; $('#description').value = quiz.description;
+  $('#pass_mark').value = quiz.pass_mark; $('#qstatus').value = quiz.status;
+  $('#openBtn').href = '/q/' + id; $('#resultsBtn').href = '/results/' + id;
+  render(); setDirty(false);
+})();
+</script>
+</body></html>

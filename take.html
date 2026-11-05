@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quiz · PopQuiz</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>.score{font:700 56px Fraunces,serif;margin:0}.expl{margin:8px 0 0;font-size:14px;color:var(--muted)}</style>
+</head><body>
+<div class="wrap narrow" id="app"><p class="muted">Loading…</p></div>
+<p class="muted" style="text-align:center;font-size:13px">Made with <a href="/">PopQuiz</a></p>
+<script src="/static/app.js"></script>
+<script>
+const id = location.pathname.split('/').pop();
+let quiz; const answers = {};
+
+function pick(qid, i) {
+  answers[qid] = i;
+  document.querySelectorAll(`[data-q="${qid}"] .opt`).forEach((el, j) => el.classList.toggle('sel', j === i));
+  $('#progress').textContent = `${Object.keys(answers).length} of ${quiz.questions.length} answered`;
+}
+
+function renderQuiz() {
+  const app = $('#app');
+  if (quiz.status !== 'live') { app.innerHTML = `<h1>${esc(quiz.title)}</h1><div class="card empty">This quiz is closed and no longer accepting answers.</div>`; return; }
+  app.innerHTML = `
+    <h1>${esc(quiz.title)}</h1>
+    ${quiz.description ? `<p class="muted" style="font-size:17px">${esc(quiz.description)}</p>` : ''}
+    <p class="muted">${quiz.questions.length} questions · pass mark ${quiz.pass_mark}%</p>
+    <div class="card"><label style="margin-top:0">Your name</label><input id="name" placeholder="So your trainer can see your score"></div>
+    ${quiz.questions.map((q, i) => `
+      <div class="card" data-q="${q.id}">
+        <p style="margin:0 0 8px"><b>${i + 1}. ${esc(q.question)}</b></p>
+        ${q.options.map((o, j) => `<label class="opt" onclick="pick('${q.id}',${j})"><input type="radio" name="${q.id}"> ${esc(o)}</label>`).join('')}
+      </div>`).join('')}
+    <div class="row"><span id="progress" class="muted">0 of ${quiz.questions.length} answered</span><span class="spacer"></span>
+      <button class="btn primary" id="submit">Submit answers</button></div>
+    <p id="err" style="color:var(--bad)"></p>`;
+  $('#submit').onclick = submit;
+}
+
+async function submit() {
+  const name = $('#name').value.trim();
+  if (!name) { $('#err').textContent = 'Please enter your name.'; $('#name').focus(); return; }
+  const left = quiz.questions.length - Object.keys(answers).length;
+  if (left && !confirm(`${left} question(s) unanswered. Submit anyway?`)) return;
+  $('#submit').disabled = true;
+  try {
+    const r = await fetch(`/api/public/${id}/submit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, answers }) }).then(async (x) => { const d = await x.json(); if (!x.ok) throw new Error(d.error); return d; });
+    showResult(r);
+  } catch (e) { $('#err').textContent = e.message; $('#submit').disabled = false; }
+}
+
+function showResult(r) {
+  $('#app').innerHTML = `
+    <div class="card" style="text-align:center;margin-top:30px">
+      <p class="muted" style="margin:0">${esc(quiz.title)}</p>
+      <p class="score" style="color:${r.passed ? 'var(--good)' : 'var(--bad)'}">${r.percent}%</p>
+      <p style="margin:0"><b>${r.score} of ${r.total} correct</b> · ${r.passed ? 'You passed 🎉' : `Pass mark is ${r.pass_mark}% — review below and try again`}</p>
+    </div>
+    <h2>Review</h2>
+    ${r.review.map((q, i) => `
+      <div class="card">
+        <p style="margin:0 0 8px"><b>${i + 1}. ${esc(q.question)}</b></p>
+        ${q.options.map((o, j) => `<div class="opt ${j === q.correct_option ? 'right' : j === q.picked ? 'wrong' : ''}" style="cursor:default">${j === q.correct_option ? '✓' : j === q.picked ? '✕' : '&nbsp;&nbsp;'} ${esc(o)}</div>`).join('')}
+        ${q.explanation ? `<p class="expl">${esc(q.explanation)}</p>` : ''}
+      </div>`).join('')}
+    <div class="row"><button class="btn" onclick="location.reload()">Take it again</button></div>`;
+  window.scrollTo(0, 0);
+}
+
+(async () => {
+  const res = await fetch('/api/public/' + id);
+  if (!res.ok) { $('#app').innerHTML = '<div class="card empty" style="margin-top:40px">Quiz not found.</div>'; return; }
+  quiz = await res.json(); document.title = quiz.title; renderQuiz();
+})();
+</script>
+</body></html>

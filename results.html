@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Results · PopQuiz</title>
+<link rel="stylesheet" href="/static/style.css">
+</head><body>
+<nav><a class="logo" href="/">Pop<span>Quiz</span></a><div class="links"><a href="/dashboard">← All quizzes</a></div></nav>
+<div class="wrap" id="app"><p class="muted">Loading…</p></div>
+<script src="/static/app.js"></script>
+<script>
+const id = location.pathname.split('/').pop();
+async function load() {
+  const r = await api(`/api/quizzes/${id}/results`);
+  const dash = (v, s = '') => (v === null ? '—' : v + s);
+  $('#app').innerHTML = `
+    <div class="row"><h1 style="margin:0">${esc(r.title)}</h1><span class="spacer"></span>
+      <a class="btn small" href="/edit/${id}">Edit quiz</a><button class="btn small primary" onclick="copy(location.origin+'/q/${id}')">Copy share link</button></div>
+    <p class="muted">Live results · refreshes every few seconds. Tip: ask Claude “use PopQuiz to look at the results and tell me what people struggled with”.</p>
+    <div class="stats">
+      <div class="stat"><span class="muted">Responses</span><b>${r.responses}</b></div>
+      <div class="stat"><span class="muted">Average score</span><b>${dash(r.average_percent, '%')}</b></div>
+      <div class="stat"><span class="muted">Pass rate</span><b>${dash(r.pass_rate, '%')}</b></div>
+    </div>
+    <h2>Questions, hardest first</h2>
+    <div class="card">${[...r.per_question].sort((a, b) => (a.percent_correct ?? 101) - (b.percent_correct ?? 101)).map((q) => `
+      <div style="padding:10px 0;border-bottom:1px solid var(--line)">
+        <div class="row"><b style="flex:1">${esc(q.question)}</b><span>${dash(q.percent_correct, '% correct')}</span></div>
+        <div class="bar" style="margin:8px 0 4px"><i style="width:${q.percent_correct ?? 0}%;background:${(q.percent_correct ?? 100) < 50 ? 'var(--bad)' : 'var(--good)'}"></i></div>
+        <span class="muted" style="font-size:13px">Answer: ${esc(q.correct_answer)}</span>
+      </div>`).join('')}</div>
+    <h2>People</h2>
+    <div class="card">${r.people.length ? `<table><tr><th>Name</th><th>Score</th><th>Result</th><th>When</th></tr>
+      ${[...r.people].reverse().map((p) => `<tr><td>${esc(p.name)}</td><td>${p.score} (${p.percent}%)</td><td><span class="pill ${p.passed ? 'live' : 'closed'}">${p.passed ? 'Passed' : 'Not yet'}</span></td><td class="muted">${when(p.submitted_at)}</td></tr>`).join('')}</table>`
+      : '<div class="empty">No one has taken this quiz yet. Share the link to get started.</div>'}</div>`;
+}
+load(); setInterval(load, 5000);
+</script>
+</body></html>

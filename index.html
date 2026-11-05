@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PopQuiz — Claude writes it, PopQuiz runs it</title>
+<link rel="stylesheet" href="/static/style.css">
+</head><body>
+<nav><a class="logo" href="/">Pop<span>Quiz</span></a><div class="links"><a href="#connect">Connect Claude</a><a href="/dashboard">Dashboard</a></div></nav>
+<div class="wrap">
+  <span class="pill claude">Works with your Claude · no AI inside</span>
+  <h1>Ask Claude for a quiz.<br>Get a live link in seconds.</h1>
+  <p class="muted" style="font-size:18px;max-width:620px">PopQuiz turns the quiz Claude writes into a real, shareable assessment: people take it on any phone, it grades itself, and you see who passed and which questions tripped them up.</p>
+  <div class="row" style="margin-top:18px"><a class="btn primary" href="#connect">Connect to Claude</a><a class="btn" href="/dashboard">Open dashboard</a></div>
+
+  <h2>How it works</h2>
+  <div class="stats">
+    <div class="stat"><span class="muted">1 · In Claude</span><p style="margin:6px 0 0">“Make a 10-question quiz from this SOP for new warehouse staff.”</p></div>
+    <div class="stat"><span class="muted">2 · In PopQuiz</span><p style="margin:6px 0 0">The quiz appears, ready to edit. Fix a question, change the pass mark, share the link.</p></div>
+    <div class="stat"><span class="muted">3 · Live</span><p style="margin:6px 0 0">People take it, it auto-grades, results come back. Ask Claude what they got wrong.</p></div>
+  </div>
+
+  <h2 id="connect">Connect PopQuiz to Claude</h2>
+  <div class="card">
+    <p style="margin-top:0">Your MCP link:</p>
+    <div class="row"><code id="mcp"></code><button class="btn small" onclick="copy(document.getElementById('mcp').textContent)">Copy</button></div>
+    <ol class="steps" style="margin-top:18px">
+      <li>In <b>claude.ai</b>, open <b>Settings → Connectors</b> and choose <b>Add custom connector</b>.</li>
+      <li>Name it <b>PopQuiz</b>, paste the MCP link above, and click <b>Add</b>. No sign-in needed.</li>
+      <li>In a new chat, make sure PopQuiz is switched on in the tools menu, then ask: <i>“Use PopQuiz to make a 5-question quiz on our leave policy.”</i></li>
+      <li>Open the edit link Claude gives you. Log in with <code>demo</code> / <code>popquiz2026</code>.</li>
+    </ol>
+  </div>
+
+  <h2>What Claude can do with PopQuiz</h2>
+  <div class="card">
+    <table>
+      <tr><td><b>create_quiz</b></td><td class="muted">Publish a quiz and get a share link + edit link</td></tr>
+      <tr><td><b>list_quizzes</b></td><td class="muted">See every quiz and how many people took it</td></tr>
+      <tr><td><b>get_quiz</b></td><td class="muted">Read the latest version, including your manual edits</td></tr>
+      <tr><td><b>update_quiz</b></td><td class="muted">Rewrite questions, change pass mark, open or close</td></tr>
+      <tr><td><b>get_quiz_results</b></td><td class="muted">Scores and per-question accuracy, so Claude can spot weak topics</td></tr>
+    </table>
+  </div>
+</div>
+<script src="/static/app.js"></script>
+<script>document.getElementById('mcp').textContent = location.origin + '/mcp';</script>
+</body></html>

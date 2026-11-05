@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard · PopQuiz</title>
+<link rel="stylesheet" href="/static/style.css">
+</head><body>
+<nav><a class="logo" href="/">Pop<span>Quiz</span></a><div class="links"><a href="/#connect">Connect Claude</a><a href="#" onclick="logout()">Log out</a></div></nav>
+<div class="wrap">
+  <div class="row"><h1 style="margin:0">Your quizzes</h1><span class="spacer"></span><button class="btn" onclick="blank()">+ Blank quiz</button></div>
+  <p class="muted">Quizzes Claude creates show up here automatically. Refreshes every few seconds.</p>
+  <div id="list"></div>
+</div>
+<script src="/static/app.js"></script>
+<script>
+async function load() {
+  const qs = await api('/api/quizzes');
+  $('#list').innerHTML = qs.length ? qs.map((q) => `
+    <div class="card">
+      <div class="row">
+        <a href="/edit/${q.id}" style="font:600 18px Fraunces,serif;color:var(--ink);text-decoration:none">${esc(q.title)}</a>
+        <span class="pill ${q.status}">${q.status}</span>
+        ${q.source === 'claude' ? '<span class="pill claude">by Claude</span>' : ''}
+        <span class="spacer"></span>
+        <span class="muted">${q.questions.length} questions · ${q.response_count} taken · ${when(q.created_at)}</span>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <a class="btn small primary" href="/edit/${q.id}">Edit</a>
+        <a class="btn small" href="/results/${q.id}">Results</a>
+        <a class="btn small" href="/q/${q.id}" target="_blank">Open quiz ↗</a>
+        <button class="btn small" onclick="copy(location.origin+'/q/${q.id}')">Copy share link</button>
+      </div>
+    </div>`).join('')
+    : `<div class="card empty"><p><b>No quizzes yet.</b></p><p>Connect PopQuiz to Claude and ask:<br><i>“Use PopQuiz to make a 5-question quiz on fire safety.”</i></p><a class="btn primary" href="/#connect">How to connect</a></div>`;
+}
+async function blank() {
+  const q = await api('/api/quizzes', { method: 'POST', body: { title: 'Untitled quiz', questions: [{ question: 'New question', options: ['Option A', 'Option B'], correct_option: 0 }] } });
+  location.href = '/edit/' + q.id;
+}
+load(); setInterval(load, 5000);
+</script>
+</body></html>

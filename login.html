@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Log in · PopQuiz</title>
+<link rel="stylesheet" href="/static/style.css">
+</head><body>
+<nav><a class="logo" href="/">Pop<span>Quiz</span></a></nav>
+<div class="wrap" style="max-width:400px">
+  <h1 style="font-size:30px">Log in</h1>
+  <form class="card" id="f">
+    <label>Username</label><input name="username" value="demo" autocomplete="username">
+    <label>Password</label><input name="password" type="password" autocomplete="current-password">
+    <p id="err" style="color:var(--bad);min-height:1em;margin:10px 0 0"></p>
+    <button class="btn primary" style="width:100%;justify-content:center;margin-top:8px">Log in</button>
+  </form>
+  <p class="muted" style="text-align:center">Test account: <code>demo</code> / <code>popquiz2026</code></p>
+</div>
+<script src="/static/app.js"></script>
+<script>
+$('#f').onsubmit = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    await api('/api/login', { method: 'POST', body: Object.fromEntries(fd) });
+    const next = new URLSearchParams(location.search).get('next');
+    location.href = next && next.startsWith('/') ? next : '/dashboard';
+  } catch (err) { $('#err').textContent = err.message; }
+};
+</script>
+</body></html>
